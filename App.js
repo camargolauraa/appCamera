@@ -41,11 +41,11 @@ export default function App() {
     setImageMirror(1);
 
     if (!data.canceled) {
-      const asset = data.assets[0]; // 🔹 pega o objeto certo
+      const asset = data.assets[0];
       setImage({
-        uri: asset.uri, // 🔹 agora salvo no mesmo formato da câmera
-        width: asset.width, // 🔹 adiciono width
-        height: asset.height, // 🔹 adiciono height
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
       });
       setOpen(true);
     }

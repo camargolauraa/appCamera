@@ -8,8 +8,20 @@ import {
 } from "react-native";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import {
+  Gesture,
+  GestureHandlerRootView,
+  GestureDetector,
+} from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 
-const { height } = Dimensions.get("screen");
+const { width, height } = Dimensions.get("screen");
+function clamp(val, min, max) {
+  return Math.min(Math.max(val, min), max);
+}
 
 export default function ModalEditImage({
   image,
@@ -17,21 +29,80 @@ export default function ModalEditImage({
   onClose,
   imageMirror,
 }) {
+  const scale = useSharedValue(1);
+  const startScale = useSharedValue(0);
+
+  // Zoom imagem
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      startScale.value = scale.value;
+    })
+    .onUpdate((event) => {
+      scale.value = clamp(
+        startScale.value * event.scale,
+        0.3,
+        Math.min(width / 100, height / 100)
+      );
+    })
+    .runOnJS(true);
+
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
+  // Mover imagem
+  const drag = Gesture.Pan().onChange((event) => {
+    translateX.value += event.changeX / scale.value;
+    translateY.value += event.changeY / scale.value;
+  });
+
+  // Rotacionar imagem
+  const angle = useSharedValue(1);
+  const startAngle = useSharedValue(0);
+
+  const rotation = Gesture.Rotation()
+    .onStart(() => {
+      startAngle.value = angle.value;
+    })
+    .onUpdate((event) => {
+      angle.value = startAngle.value + event.rotation;
+    })
+    .runOnJS(true);
+
+  const imageAnimatedStyles = useAnimatedStyle(() => ({
+    transform: [
+      { scaleX: imageMirror },
+      { scale: scale.value },
+      { translateX: imageMirror === -1 ? -translateX.value : translateX.value },
+      { translateY: translateY.value },
+      {
+        rotate: imageMirror === -1 ? `${-angle.value}rad` : `${angle.value}rad`,
+      },
+    ],
+  }));
+
+  const gestures = Gesture.Simultaneous(drag, pinch, rotation);
+
   return (
     <Modal style={styles.container} visible={visible} animationType="slide">
       {/* IMAGEM */}
-      <View style={styles.container}>
-        <View style={styles.imageArea}>
-          <Image
-            source={{ uri: image.uri }}
-            style={{
-              width: (image.width * height) / image.height,
-              height: height,
-              transform: [{ scaleX: imageMirror }],
-            }}
-          />
-        </View>
-      </View>
+      <GestureHandlerRootView>
+        <GestureDetector gesture={gestures}>
+          <View style={styles.container}>
+            <View style={styles.imageArea}>
+              <Animated.Image
+                source={{ uri: image.uri }}
+                style={[
+                  {
+                    width: (image.width * height) / image.height,
+                    height: height,
+                  },
+                  imageAnimatedStyles,
+                ]}
+              />
+            </View>
+          </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
       {/* BOTÕES */}
       <View style={styles.buttonContainerModal}>
         {/* BOTÃO DE FECHAR */}
